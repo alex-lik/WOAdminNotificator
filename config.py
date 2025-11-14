@@ -3,6 +3,7 @@ from os import getenv
 
 
 class TG:
+    """Конфигурация для Telegram бота."""
     def __init__(self):
         dotenv.load_dotenv()
         self.token = getenv("TELEGRAM_TOKEN")
@@ -10,6 +11,7 @@ class TG:
 
 
 class DB:
+    """Конфигурация для подключения к базе данных MySQL."""
     def __init__(self):
         dotenv.load_dotenv()
         self.host = getenv("DB_HOST")
@@ -19,8 +21,8 @@ class DB:
         self.name = getenv("DB_NAME")
 
 
-class RedisConf():
-    """ Redis settings """
+class RedisConf:
+    """Конфигурация для подключения к Redis."""
     def __init__(self) -> None:
         dotenv.load_dotenv()
         self.host = getenv('REDIS_HOST')
@@ -29,7 +31,8 @@ class RedisConf():
         self.channel = getenv('REDIS_CHANNEL')
 
 
-class Webhook():
+class Webhook:
+    """Конфигурация для webhook URL."""
     def __init__(self):
         dotenv.load_dotenv()
         self.url = getenv("WEBHOOK_URL")

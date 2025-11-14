@@ -11,6 +11,7 @@ from loguru import logger
 wh = Webhook()
 
 def translate_status(status):
+    """Переводит статус заказа на русский язык."""
     return {
         'WaitingCarSearch': 'Ожидается поиск машины',
         'SearchesForCar': 'Выполняется поиск машины',
@@ -23,6 +24,7 @@ def translate_status(status):
 
 
 def get_emoji(status):
+    """Возвращает эмодзи для соответствующего статуса заказа."""
     return {
         'WaitingCarSearch': '⏰',
         'SearchesForCar': '♻️',
@@ -35,15 +37,18 @@ def get_emoji(status):
 
 
 def calc_total(stat):
+    """Рассчитывает общие суммы выполненных и отмененных заказов."""
     total_complete = stat.get('CarFound', 0) + stat.get('Running', 0) + stat.get('Executed', 0)
     total_canceled = stat.get('Canceled', 0) + stat.get('CostCalculation', 0)
     total = sum(stat.values())
-    
+
     stat['total_complete'] = total_complete
     stat['total_canceled'] = total_canceled
     stat['total'] = total
 
+
 def calc_and_update_stat(stat):
+    """Рассчитывает и обновляет статистику заказов, включая процент выполнения."""
     calc_total(stat)
     if stat['total'] > 0:
         stat['complete_perc'] = round(stat['total_complete'] / stat['total'] * 100)
@@ -52,6 +57,7 @@ def calc_and_update_stat(stat):
 
 
 def make_stat_message(stat, emolist=None):
+    """Формирует текстовое сообщение со статистикой заказов."""
     if emolist:
         message = f"{stat['complete_perc']}%\n{emolist}\nВывоз:{stat['complete_perc']}%\nВсего: {stat['total']}\nВыполнено: {stat['total_complete']}\nОтменено: {stat['total_canceled']}\nПредварительные заказы: {stat.get('WaitingCarSearch', 0)}"
     else:
@@ -59,9 +65,9 @@ def make_stat_message(stat, emolist=None):
 
     return message
 def get_daily_stat():
+    """Получает и рассчитывает статистику заказов за текущий день."""
     today_data = db.get_today_data()
     if today_data is None:
-        # print("No data retrieved for today.")
         return
 
     today_stat = dict(Counter(today_data))
@@ -69,20 +75,22 @@ def get_daily_stat():
     message = make_stat_message(today_stat)
     return message
 
+
 def make_emo_message_part(stat):
+    """Создает строку эмодзи на основе списка статусов заказов."""
     message = ''
     for status in stat:
-        message += get_emoji(status)
+        message += get_emoji(status) or ''
     return message[::-1]
 
 
 def get_current_stat():
+    """Получает и рассчитывает текущую статистику заказов с визуализацией."""
     current_data = db.get_current_data()
     emolist = make_emo_message_part(current_data)
 
     if not current_data:
-        # print("No data retrieved for current stat.")
-        return
+        return None, None
 
     current_stat = dict(Counter(current_data))
     calc_and_update_stat(current_stat)
@@ -109,9 +117,9 @@ def send_to_redis(current_value):
 
 
 def send_completion_percentage(stat):
-    # logger.info(stat)
+    """Отправляет процент выполнения в Mi Band и Redis при изменении."""
     old_value = redis_worker.get_completion_percentage()
-    current_value = stat.get('complete_perc') 
+    current_value = stat.get('complete_perc')
 
     try:
         if current_value and int(current_value) == int(old_value):
@@ -124,26 +132,21 @@ def send_completion_percentage(stat):
 
 
 def main():
+    """Основная функция, собирающая статистику и отправляющая уведомления."""
     day_message = get_daily_stat()
     current_message, current_stat = get_current_stat()
-    send_completion_percentage(current_stat)
-    day_header = f'Cтатистика за день ({date.today().strftime("%d.%m.%Y")}):\n'
-    message = current_message + '\n' + '_'*10 + '\n' + day_header + day_message 
+    if current_stat:
+        send_completion_percentage(current_stat)
+    day_header = f'Статистика за день ({date.today().strftime("%d.%m.%Y")}):\n'
+    message = f"{current_message or ''}\n{'_'*10}\n{day_header}{day_message or ''}"
 
     last_message = db.get_last_message()
-    # logger.info(message)
     if last_message:
-        # print('есть последнее сообщение')
         last_message_id, last_message_text = last_message
         if last_message_text != message:
-            # print('сообщение изменилось')
-            # print(last_message_id, last_message_text, message)
             telegram.edit_message(last_message_id, message)
             db.save_message(last_message_id, message)
-        # else:
-            # print('сообщение не изменилось')
     else:
-        # print("нет последнего сообщения")
         response = telegram.send_message(message)
         if response:
             response = response.json()
@@ -157,9 +160,3 @@ if __name__ == "__main__":
     for i in range(5):
         main()
         sleep(10)
-    # main()
-    # msg_id = 251203
-    # message = '234'
-    # pin_message(msg_id)
-    # unpin_message(msg_id)
-    # telegram.edit_message(msg_id, message)

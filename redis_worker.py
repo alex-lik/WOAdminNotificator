@@ -5,27 +5,29 @@ from config import RedisConf as RedisConf
 conf = RedisConf()
 
 def get_redis():
-    """ Подключаемся к серверу Redis """
+    """Подключается к серверу Redis."""
     try:
         return redis.Redis(host=conf.host, port=conf.port, db=conf.db)
-    except:pass
+    except Exception:
+        pass
 
 
 def send_message(data, channel=conf.channel):
     """
-    Отправляем сообщение в канал.
+    Отправляет сообщение в канал Redis.
 
-    :param data: Данные, которые необходимо отправить в канал
-    :param channel: Имя канала, в который будут отправлены данные
+    :param data: Данные для отправки в канал
+    :param channel: Имя канала для отправки данных
     """
     try:
-       redis = get_redis()
-       redis.publish(channel, data)
+        r = get_redis()
+        r.publish(channel, data)
     except Exception as e:
-       print(f'Ошибка при отправке сообщения в канал {channel}: {e}')
-       
-def get_data(key):
+        print(f'Ошибка при отправке сообщения в канал {channel}: {e}')
 
+
+def get_data(key):
+    """Получает данные из Redis по ключу."""
     r = get_redis()
     key_type = r.type(key)
 
@@ -46,8 +48,11 @@ def get_data(key):
 
 
 def update_completion_percentage(percentage):
+    """Обновляет процент выполнения в Redis."""
     r = get_redis()
     r.set('percentage', percentage)
 
+
 def get_completion_percentage():
+    """Получает текущий процент выполнения из Redis."""
     return get_data('percentage')
